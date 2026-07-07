@@ -1,7 +1,7 @@
-import feedparser
-import google.generativeai as genai
-from datetime import datetime, timezone, timedelta
 import os
+import feedparser
+from datetime import datetime, timezone, timedelta
+import google.genai as genai
 
 # ==========================================
 # 0. AI (Gemini) のセットアップ
@@ -9,8 +9,11 @@ import os
 # GitHub環境ならSecretsから、Colabテストなら直書きのキーを使用
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+if GEMINI_API_KEY:
+    client = genai.Client(api_key=GEMINI_API_KEY)
+else:
+    client = None
+
 JST = timezone(timedelta(hours=+9), 'JST')
 
 # ==========================================
@@ -39,7 +42,7 @@ STRICT_KEYWORDS = [
     "KOKUSAI", "AMAT", "Applied Materials", "東京エレクトロン", "ディスコ", "ウシオ電機", "AIメカテック", 
     "アルバック", "Lam Research", "ラムリサーチ", "SUMCO", "AGC", "日本電気硝子", "HOYA", "JX金属", "日東紡", 
     "住友化学", "Intel", "インテル", "Samsung", "サムスン", "アドバンテスト", "Teradyne", "テラダイン", 
-    "東京精密", "日本マイクロニクス", "FormFactor", "Camtek", "Onto Innovation", "TOWA", "芝浦メカトロニクス", 
+    "東京精密", "日本マイクロニクス", "FormFactor", "Camtek", "Onto Innovation", "TOWA", "芝浦メカトロニクス",
     "ニコン", "ASML", "FUJI", "住友ベークライト", "デンカ", "日東電工", "信越化学", "イビデン", "京セラ", "味の素", 
     "レゾナック", "三菱ガス化学", "三井金属", "太陽HD", "メック", "JCU", "山一電機", "エンプラス", "日本電子材料", 
     "COHU", "テラプローブ", "三井ハイテック", "タカトリ", "リンテック", "湖北工業", "精工技研", "Broadcom", 
@@ -51,34 +54,32 @@ STRICT_KEYWORDS = [
     "テクニスコ", "キャリア・グローバル", "バーティブ", "ニデック", "オルガノ", "栗田工業", "関電工", "きんでん", 
     "三機工業", "大林組", "鹿島", "清水建設", "太平洋セメント", "住友大阪セメント", "中国電力", "ブルーム・エナジー",
     "Microsoft", "Amazon", "Google", "Meta", "TSMC", "台積電", "Foxconn", "鴻海", "Quanta", "広達", "Wistron", 
-    "緯創", "AWS", "ASE", "SPIL", "Powertech", "Unimicron", "長興", "三福化学", "中華化学", "盛毅", 
-    "Walsin Technology", "華新科技",
-
+    "緯創", "AWS", "ASE", "SPIL", "Powertech", "Unimicron", "長興", "三福化学", "中華化学", "盛毅", "Walsin Technology", "華新科技",
+    
     # --- アーキテクチャ・AIインフラ・トレンド ---
     "GB300", "Blackwell", "Vera Rubin", "Rubin", "Hopper", "NVLシリーズ", "NVIDIAプラットフォーム", "Kyber",
     "Spectrum-X", "Trainium", "AIインフラ", "AIファクトリー", "AI Factory", "計算資源不足", "トークン生成需要", 
     "エージェントAI", "Agent AI", "フィジカルAI", "Physical AI", "Capex", "Hyperscalers", "AIサーバー", "Inference",
-    "推論", "訓練需要", "資本市場依存", "GIGAファブ", "規模優位性", "歩留まり", "技術力", "受注殺到", "成長加速", 
-    "生産能力不足", "波及効果", "異次元成長", "出荷急増", "認証通過", "代替検証", "供給逼迫", "値上げ",
-
+    "推論",
+  
     # --- 工程・製造技術（前・中・後工程） ---
     "前工程", "後工程", "中工程", "ファウンドリー", "テスト工程", "パッケージング", "先進パッケージング", 
     "先端プロセス", "成熟プロセス", "3nm", "2nm", "垂直統合", "国内化", "設計不備", "シリコンインゴット", "切断", 
     "研磨", "ウェハ表面の酸化", "薄膜形成", "フォトレジスト塗布", "露光", "EUV露光", "現像", "エッチング", 
-    "フォトレジスト除去", "イオン注入", "平坦化", "CMP", "電極形成", "検査", "最終検査", "ダイシング", 
+    "フォトレジスト除去", "イオン注入", "平坦化", "CMP", "電極形成", "検査", "最終検査", "ダイシング",
     "ワイヤーボンディング", "モールディング", "封止", "モールド", "ハイブリッド接合",
-
+  
     # --- 装置・コンポーネント・部品 ---
     "CVD装置", "ALD", "バッチ式", "ウエットエッチング装置", "コーターデベロッパー", "塗布現像装置", "スクラバー", 
     "バッチ式洗浄装置", "フラッシュランプアニール", "枚葉式洗浄装置", "レジスト剥離装置", "露光装置", 
     "SoCテスタ", "プローバ", "プローブカード", "光学式外観検査装置", "直接描画装置", "リニアコータ", 
     "インクジェット印刷機", "デジタル印刷機", "UVインクジェット印刷機", "テラファブ", "PILLAR",
-    "ウエハー", "シリコンウェハ", "ICチップ", "IC", "フォトマスク", "レジスト", "パワーデバイス", "ロジック", 
-    "イメージセンサー", "CCDセンサー", "CMOSセンサー", "IoT", "MEMS", "SAWデバイス", "タッチパネル", 
+    "ウエハー", "シリコンウェハ", "ICチップ", "フォトマスク", "レジスト", "パワーデバイス", "ロジック",
+    "イメージセンサー", "CCDセンサー", "CMOSセンサー", "MEMS", "SAWデバイス", "タッチパネル", 
     "フラットパネルディスプレー", "有機ELディスプレー", "TFT LCD", "プリント基板", "プリント配線板", 
     "バックプレーン", "受動部品", "MLCC", "電源", "液冷", "水冷", "チラー", "CDU", "光通信", "光エンジン", 
     "外部レーザー光源", "海底ケーブル", "NVLink", "UBB",
-
+  
     # --- パッケージング規格・メモリ・化学材料 ---
     "CoPoS", "CoWoS", "FOPLP", "PLP", "HBM", "ガラス基板", "RDL", "インターポーザ", "TSV", "TGV", "FC-BGA", 
     "ABF", "CPO", "Co-Packaged Optics", "AIヘテロジニアス統合", "メモリ中心シフト", "SRAM", "DRAM", "NAND", 
@@ -133,19 +134,28 @@ print(">> AIが相場への影響を分析中...")
 for i, news in enumerate(unique_news[:30]):
     if i < 10: 
         prompt = f"""
-        あなたは冷徹な機関投資家のアナリストです。以下の半導体関連ニュースから、
-        相場やサプライチェーンへの影響（誰が得をして誰が損をするか、どの工程に影響するか）を分析し、
-        感情を交えず、客観的な事実に基づいた箇条書き3行のみで出力してください。
+あなたは冷徹な機関投資家のアナリストです。以下の半導体関連ニュースから、
+相場やサプライチェーンへの影響（誰が得をして誰が損をするか、どの工程に影響するか）を分析し、
+感情を交えず、客観的な事実に基づいた箇条書き3行のみで出力してください。
         
-        【タイトル】: {news['title']}
-        【本文】: {news['summary_raw']}
+【タイトル】: {news['title']}
+【本文】: {news['summary_raw']}
         """
-        try:
-            response = model.generate_content(prompt)
-            ai_text = response.text.replace('\n', '<br>').replace('*', '•')
-            news['ai_summary'] = f'<div style="background: #1a202c; padding: 10px; border-left: 3px solid #63b3ed; font-size: 0.8rem; color: #cbd5e0; margin-top: 8px; line-height: 1.5;">{ai_text}</div>'
-            print(f"[{i+1}/10] {news['title'][:15]}... の要約完了")
-        except Exception as e:
+        if client:
+            try:
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=prompt,
+                )
+                if response and response.text:
+                    ai_text = response.text.strip().replace('\n', '<br>').replace('*', '•')
+                    news['ai_summary'] = f'<div style="background: #1a202c; padding: 10px; border-left: 3px solid #63b3ed; font-size: 0.8rem; color: #cbd5e0; margin-top: 8px; line-height: 1.5;">{ai_text}</div>'
+                    print(f"[{i+1}/10] {news['title'][:15]}... の要約完了")
+                else:
+                    news['ai_summary'] = '<div style="font-size:0.75rem; color:#94a3b8;">(AI要約をスキップしました)</div>'
+            except Exception as e:
+                news['ai_summary'] = f'<div style="font-size:0.75rem; color:#94a3b8;">(要約エラー: {str(e)[:30]})</div>'
+        else:
             news['ai_summary'] = '<div style="font-size:0.75rem; color:#94a3b8;">(AI要約をスキップしました)</div>'
     else:
         news['ai_summary'] = ''
@@ -187,22 +197,18 @@ full_html = f"""<!DOCTYPE html>
 </head>
 <body style="background: #0a0d14; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 16px;">
 <div style="max-width: 650px; margin: 0 auto; padding-bottom: 60px;">
-
     <div style="border-bottom: 1px solid #232a3b; padding-bottom: 14px; margin-bottom: 20px;">
         <div style="font-size: 0.65rem; color: #94a3b8; letter-spacing: 0.1em; font-weight: bold;">AI ANALYZER & HIGH-PRECISION FILTER</div>
         <h1 style="margin: 4px 0; font-size: 1.4rem; font-weight: 700;">半導体ニュース<span style="color: #e2b973;">トラッカー</span></h1>
         <div style="font-size: 0.75rem; color: #94a3b8;">データ更新時刻: {datetime.now(JST).strftime('%Y-%m-%d %H:%M:%S')}</div>
     </div>
-
     <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #232a3b; padding-bottom: 6px; margin-bottom: 10px;">
         <h2 style="font-size: 1.05rem; font-weight: 600; margin: 0;">自動ヘッドライン (AI相場分析)</h2>
         <span style="font-size: 0.7rem; color: #94a3b8;">上位10件を自動要約</span>
-    </div>
-    
+    </div> 
     <div>
         {news_html_content}
     </div>
-
 </div>
 </body>
 </html>
@@ -210,4 +216,4 @@ full_html = f"""<!DOCTYPE html>
 
 with open('ai_tracker.html', 'w', encoding='utf-8') as f:
     f.write(full_html)
-print(">> 完了！ 'ai_tracker.html' をダウンロードして開いてください。")
+print(">> 完了！ 'ai_tracker.html' を生成しました。")
