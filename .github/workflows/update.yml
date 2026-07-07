@@ -1,0 +1,41 @@
+name: Auto Update AI News Tracker
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'  # 3時間ごとに実行
+  workflow_dispatch:       # 手動実行ボタン
+
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: リポジトリのコードを取得
+      uses: actions/checkout@v4
+
+    - name: Python環境のセットアップ
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: 必要なライブラリのインストール
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: ニュース抽出＆AI要約プログラムの実行
+      env:
+        # 金庫に入れたAPIキーを呼び出す
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: |
+        python ai_tracker.py
+
+    - name: 完成したHTMLを保存して公開(Commit & Push)
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add ai_tracker.html
+        git commit -m "Auto-update AI news dashboard" || echo "No changes to commit"
+        git push
